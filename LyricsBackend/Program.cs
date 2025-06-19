@@ -2,6 +2,7 @@ using LyricsBackend.Contracts;
 using LyricsBackend.Models;
 using Supabase;
 using Supabase.Postgrest;
+using System.Linq.Expressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,14 +40,30 @@ app.MapPost("/users", async (
     {
         Username = request.Username,
         Password = request.Password,
-        Email = request.Email
+        Email = request.Email,
+        CreatedAt = DateTime.UtcNow
     };
+
+
+    var existingCheck = await client.From<Users>().Where(u => u.Username == user.Username || u.Email == user.Email).Get();
+    var foundExistingUser = existingCheck.Models.FirstOrDefault();
+
+    if (foundExistingUser != null)
+    {
+        if (foundExistingUser.Username == user.Username)
+        {
+            return Results.Conflict("Username already exists");
+        }
+
+        return Results.Conflict("Email already exists");
+    }
+
 
     var response = await client.From<Users>().Insert(user);
 
     var newUser = response.Models.First();
 
-    return Results.Ok(newUser.Id);
+    return Results.Created("User created successfully",newUser.Id);
 });
 
 // gettin user info
@@ -212,6 +229,75 @@ app.MapGet("/albums/multisearch", async (string title, Supabase.Client client) =
     });
 
     return Results.Ok(albumResponse);
+
+});
+
+// adding a song in favourites - broken
+app.MapPost("/favorites", async (CreateFavoriteRequest request, Supabase.Client client) =>
+{
+    var userResponse = await client.From<Users>().Select("*").Filter("username", Constants.Operator.Equals, request.Username).Get();
+    var user = userResponse.Models.FirstOrDefault();
+
+    if(user is null)
+    {
+        return Results.BadRequest("User not found");
+    }
+
+    var songResponse = await client.From<Songs>().Select("*").Filter("title", Constants.Operator.Equals, request.SongTitle).Get();
+
+    var song = songResponse.Models.FirstOrDefault();
+
+    if (song is null)
+    {
+        return Results.BadRequest("Song not found");
+    }
+
+    var favorite = new Favorites
+    {
+        UserId = user.Id,
+        SongId = song.Id,
+        AddedAt = DateTime.UtcNow
+    };
+
+    var response = await client.From<Favorites>().Insert(favorite);
+    var createdFav = response.Models.FirstOrDefault();
+
+    if(createdFav is null)
+    {
+        return Results.BadRequest("Failed to add the song in favorites");
+    }
+
+    return Results.Created("Song added to favorites!", new FavoriteResponse
+    {
+        Id = createdFav.Id,
+        UserId = createdFav.UserId,
+        SongId = createdFav.SongId,
+        AddedAt = createdFav.AddedAt
+    });
+}
+
+);
+
+// fetching all favorites - broken
+app.MapGet("/favorites/{userId}", async (long userId, Supabase.Client client) =>
+{
+    var response = await client.From<Favorites>()
+    .Select("*, song:songs(title, album:albums(title), artist:artists(name))")
+    .Filter("user_id", Constants.Operator.Equals, userId).Get();
+    
+    if(!response.Models.Any())
+    {
+        return Results.NotFound("This user's favorite list is empty!");
+    }
+
+    var favoriteResponse = response.Models.Select(favorite => new FavoriteFetchResponse
+    {
+        SongTitle = favorite.Song.Title,
+        AlbumName = favorite.Song.Album.Title,
+        ArtistName = favorite.Song.Artist.Name
+    });
+
+    return Results.Ok(favoriteResponse);
 
 });
 

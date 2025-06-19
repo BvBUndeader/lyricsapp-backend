@@ -6,7 +6,7 @@ namespace LyricsBackend.Models
     [Table("favorites")]
     public class Favorites : BaseModel  
     {
-        [PrimaryKey("id")]
+        [PrimaryKey("id", false)]
         public long Id { get; set; }
 
         [Column("user_id")]
@@ -18,8 +18,8 @@ namespace LyricsBackend.Models
         [Column("added_at")]
         public DateTime AddedAt { get; set; }
 
-        [Column("user")]
-        public Users User { get; set; }
+        //[Column("user")]
+        //public Users User { get; set; }
 
         [Column("song")]
         public Songs Song { get; set; }

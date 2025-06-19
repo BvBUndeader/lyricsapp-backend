@@ -6,7 +6,7 @@ namespace LyricsBackend.Models
     [Table("albums")]
     public class Albums : BaseModel
     {
-        [PrimaryKey("id")]
+        [PrimaryKey("id", false)]
         public long Id { get; set; }
 
         [Column("artist_id")]
