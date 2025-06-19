@@ -20,5 +20,8 @@ namespace LyricsBackend.Models
 
         [Column("release_date")]
         public DateOnly ReleaseDate { get; set; }
+
+        [Column("artist")]
+        public Artists Artist { get; set; }
     }
 }

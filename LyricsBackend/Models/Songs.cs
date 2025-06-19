@@ -20,5 +20,11 @@ namespace LyricsBackend.Models
 
         [Column("lyrics")]
         public string Lyrics { get; set; }
+
+        [Column("album")]
+        public Albums Album { get; set; }
+
+        [Column("artist")]
+        public Artists Artist { get; set; }
     }
 }

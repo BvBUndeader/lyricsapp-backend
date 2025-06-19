@@ -17,5 +17,11 @@ namespace LyricsBackend.Models
 
         [Column("added_at")]
         public DateTime AddedAt { get; set; }
+
+        [Column("user")]
+        public Users User { get; set; }
+
+        [Column("song")]
+        public Songs Song { get; set; }
     }
 }
