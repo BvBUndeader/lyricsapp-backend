@@ -232,7 +232,7 @@ app.MapGet("/albums/multisearch", async (string title, Supabase.Client client) =
 
 });
 
-// adding a song in favourites - broken
+// adding a song in favourites - expects a json string with the username and the song title
 app.MapPost("/favorites", async (CreateFavoriteRequest request, Supabase.Client client) =>
 {
     var userResponse = await client.From<Users>().Select("*").Filter("username", Constants.Operator.Equals, request.Username).Get();
@@ -278,26 +278,36 @@ app.MapPost("/favorites", async (CreateFavoriteRequest request, Supabase.Client 
 
 );
 
-// fetching all favorites - broken
+// fetching all favorites - gives the info about the song, album and artist in the form of a json string (to visualize the data kind of like spotify)
 app.MapGet("/favorites/{userId}", async (long userId, Supabase.Client client) =>
 {
     var response = await client.From<Favorites>()
-    .Select("*, song:songs(title, album:albums(title), artist:artists(name))")
-    .Filter("user_id", Constants.Operator.Equals, userId).Get();
+    .Select("*").Where(fav => fav.UserId == userId).Get();
     
     if(!response.Models.Any())
     {
         return Results.NotFound("This user's favorite list is empty!");
     }
 
-    var favoriteResponse = response.Models.Select(favorite => new FavoriteFetchResponse
-    {
-        SongTitle = favorite.Song.Title,
-        AlbumName = favorite.Song.Album.Title,
-        ArtistName = favorite.Song.Artist.Name
-    });
+    List<FavoriteFetchResponse> songFetch = new List<FavoriteFetchResponse>();
 
-    return Results.Ok(favoriteResponse);
+    foreach (var favorite in response.Models)
+    {
+        var songCheck = await client.From<Songs>().Select("*, album:albums(title),artist:artists(name)").Where(s => s.Id == favorite.SongId).Get();
+
+        var song = songCheck.Models.FirstOrDefault();
+        if (song != null)
+        {
+            songFetch.Add(new FavoriteFetchResponse
+            {
+                SongTitle = song.Title,
+                AlbumName = song.Album.Title,
+                ArtistName = song.Artist.Name
+            });
+        }
+    }
+
+    return Results.Ok(songFetch);
 
 });
 
