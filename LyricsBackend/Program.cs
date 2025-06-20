@@ -311,6 +311,13 @@ app.MapGet("/favorites/{userId}", async (long userId, Supabase.Client client) =>
 
 });
 
+// removing a song from favorites
+app.MapDelete("/favorites/delete/{userId}/{songId}", async (long userId, long songId, Supabase.Client client) =>
+{
+    await client.From<Favorites>().Where(favSong => favSong.SongId == songId && favSong.UserId == userId).Delete();
+    return Results.Ok("Removed song from favorites");
+});
+
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
