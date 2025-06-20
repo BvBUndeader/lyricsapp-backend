@@ -91,6 +91,31 @@ app.MapGet("/users/{id}", async (long id, Supabase.Client client) =>
     return Results.Ok(userResponse);
 });
 
+// login check
+app.MapGet("/login", async (string username, string password, Supabase.Client client) =>
+{
+    var response = await client.
+    From<Users>().Where(n => n.Username == username && n.Password == password).Get();
+
+    var user = response.Models.FirstOrDefault();
+
+    if (user is null)
+    {
+        return Results.NotFound("Invalid username or password");
+    }
+
+    var userResponse = new UserResponse
+    {
+        Id = user.Id,
+        Username = user.Username,
+        Password = user.Password,
+        Email = user.Email,
+        CreatedAt = user.CreatedAt
+    };
+
+    return Results.Ok(userResponse);
+});
+
 //fetching a song
 app.MapGet("/songs/search", async (string title, Supabase.Client client) =>
 {
@@ -318,7 +343,7 @@ app.MapDelete("/favorites/delete/{userId}/{songId}", async (long userId, long so
     return Results.Ok("Removed song from favorites");
 });
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
