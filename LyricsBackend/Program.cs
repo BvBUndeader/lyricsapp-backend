@@ -117,7 +117,43 @@ app.MapGet("/login", async (string username, string password, Supabase.Client cl
 });
 
 //fetching a song
-app.MapGet("/songs/search", async (string title, Supabase.Client client) =>
+app.MapGet("/songs/search", async (string title, string artist, Supabase.Client client) =>
+{
+    var artistResponse = await client.From<Artists>().Select("*")
+    .Filter(artist => artist.Name, Constants.Operator.ILike, "%" + artist + "%").Get();
+
+    var artistObj = artistResponse.Models.FirstOrDefault();
+
+    if (artistObj is null)
+    {
+        return Results.NotFound("No song found from that artist");
+    }
+
+    var songResponse = await client.From<Songs>().Select("*, album:albums(title),artist:artists(name)")
+    .Filter(song => song.Title, Constants.Operator.ILike, "%" + title + "%")
+    .Where(song => song.ArtistId == artistObj.Id).Get();
+
+    var songObj = songResponse.Models.FirstOrDefault();
+
+    if (songObj is null)
+    {
+        return Results.NotFound("Song not found");
+    }
+
+    var singleSongRequest = new SongResponse
+    {
+        Title = songObj.Title,
+        Album = songObj.Album.Title,
+        Artist = songObj.Artist.Name,
+        Lyrics = songObj.Lyrics
+    };
+
+    return Results.Ok(singleSongRequest);
+
+});
+
+// fetching first song
+app.MapGet("/songs/searchfirst", async (string title, Supabase.Client client) =>
 {
     var response = await client.From<Songs>().Select("*, album:albums(title),artist:artists(name)")
     .Filter(song => song.Title, Constants.Operator.ILike, "%" + title + "%").Get();
