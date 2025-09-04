@@ -50,6 +50,11 @@ app.MapPost("/users", async (
 
     if (foundExistingUser != null)
     {
+        if (foundExistingUser.Username == user.Username && foundExistingUser.Email == user.Email)
+        {
+            return Results.Conflict("Username and Email already exist");
+        }
+
         if (foundExistingUser.Username == user.Username)
         {
             return Results.Conflict("Username already exists");
@@ -63,7 +68,16 @@ app.MapPost("/users", async (
 
     var newUser = response.Models.First();
 
-    return Results.Created("User created successfully",newUser.Id);
+    var userResponse = new UserResponse
+    {
+        Id = newUser.Id,
+        Username = newUser.Username,
+        Password = newUser.Password,
+        Email = newUser.Email,
+        CreatedAt = newUser.CreatedAt
+    };
+
+    return Results.Created("User created successfully",userResponse);
 });
 
 // gettin user info
