@@ -156,6 +156,7 @@ app.MapGet("/songs/search", async (string title, string artist, Supabase.Client 
 
     var singleSongRequest = new SongResponse
     {
+        Id = songObj.Id,
         Title = songObj.Title,
         Album = songObj.Album.Title,
         Artist = songObj.Artist.Name,
@@ -181,6 +182,7 @@ app.MapGet("/songs/searchfirst", async (string title, Supabase.Client client) =>
 
     var songResponse = new SongResponse
     {
+        Id = song.Id,
         Title = song.Title,
         Album = song.Album.Title,
         Artist = song.Artist.Name,
@@ -205,6 +207,7 @@ app.MapGet("/songs/multisearch", async (string title, Supabase.Client client) =>
 
     var songResponse = response.Models.Select(song => new SongResponse
     {
+        Id =song.Id,
         Title = song.Title,
         Album = song.Album.Title,
         Artist = song.Artist.Name,
@@ -386,11 +389,59 @@ app.MapGet("/favorites/{userId}", async (long userId, Supabase.Client client) =>
 
 });
 
-// removing a song from favorites
-app.MapDelete("/favorites/delete/{userId}/{songId}", async (long userId, long songId, Supabase.Client client) =>
+// single item check in favorites
+app.MapGet("/favoritescheck", async (long userId, string songTitle, Supabase.Client client) =>
 {
-    await client.From<Favorites>().Where(favSong => favSong.SongId == songId && favSong.UserId == userId).Delete();
-    return Results.Ok("Removed song from favorites");
+
+    var songResponse = await client.From<Songs>().Select("*, album:albums(title),artist:artists(name)").Where(s => s.Title == songTitle).Get();
+    var song = songResponse.Models.FirstOrDefault();
+
+    var favListCheck = await client.From<Favorites>().Select("*").Where(fav => (fav.UserId == userId) && (fav.SongId == song.Id)).Get();
+    var favCheck = favListCheck.Models.FirstOrDefault();
+
+
+    if (song is null)
+    {
+        return Results.NotFound("Song not found");
+    }
+
+    if (favCheck is null)
+    {
+        return Results.NotFound("Song not in favorites");
+    }
+
+    var favResponse = new FavoriteFetchResponse
+    {
+        SongTitle = song.Title,
+        AlbumName= song.Album.Title,
+        ArtistName = song.Artist.Name
+    };
+
+    return Results.Ok(favResponse);
+
+});
+
+// removing a song from favorites
+app.MapDelete("/favorites/delete/{userId}/{songTitle}", async (long userId, string songTitle, Supabase.Client client) =>
+{
+    var songResponse = await client.From<Songs>().Select("*, album:albums(title),artist:artists(name)").Where(s => s.Title == songTitle).Get();
+    var song = songResponse.Models.FirstOrDefault();
+
+    var favListCheck = await client.From<Favorites>().Select("*").Where(fav => (fav.UserId == userId) && (fav.SongId == song.Id)).Get();
+    var favCheck = favListCheck.Models.FirstOrDefault();
+
+    if (song != null && favCheck != null)
+    {
+        await client.From<Favorites>().Where(favSong => favSong.SongId == song.Id && favSong.UserId == userId).Delete();
+        return Results.Ok("Removed song from favorites");
+    }
+
+    
+
+    //await client.From<Favorites>().Where(favSong => favSong.SongId == song.Id && favSong.UserId == userId).Delete();
+    //return Results.Ok("Removed song from favorites");
+
+    return Results.NotFound("No such song is in user's favorites");
 });
 
 //app.UseHttpsRedirection();
