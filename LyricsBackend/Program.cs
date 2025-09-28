@@ -254,7 +254,8 @@ app.MapGet("/artists/multisearch", async (string name, Supabase.Client client) =
 
     var artistResponse = response.Models.Select(artist => new ArtistResponse
     {
-        Name= artist.Name
+        Name = artist.Name,
+        Bio = artist.Bio
     });
 
     return Results.Ok(artistResponse);
@@ -435,11 +436,6 @@ app.MapDelete("/favorites/delete/{userId}/{songTitle}", async (long userId, stri
         await client.From<Favorites>().Where(favSong => favSong.SongId == song.Id && favSong.UserId == userId).Delete();
         return Results.Ok("Removed song from favorites");
     }
-
-    
-
-    //await client.From<Favorites>().Where(favSong => favSong.SongId == song.Id && favSong.UserId == userId).Delete();
-    //return Results.Ok("Removed song from favorites");
 
     return Results.NotFound("No such song is in user's favorites");
 });
