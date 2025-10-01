@@ -15,13 +15,14 @@ namespace LyricsBackend.Models
         [Column("title")]
         public string Title { get; set; }
 
-        [Column("genre")]
-        public string Genre { get; set; }
-
         [Column("release_date")]
         public DateOnly ReleaseDate { get; set; }
 
-        [Column("artist")]
+        [Column("genre_id")]
+        public long genre_id { get; set; }
+
+        
         public Artists Artist { get; set; }
+        public Genres Genre { get; set; }
     }
 }

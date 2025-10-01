@@ -3,22 +3,21 @@ using Supabase.Postgrest.Models;
 
 namespace LyricsBackend.Models
 {
-    [Table("songs")]
-    public class Songs : BaseModel
+    [Table("artist_bio")]
+    public class ArtistBio : BaseModel
     {
         [PrimaryKey("id", false)]
         public long Id { get; set; }
 
-        [Column("album_id")]
-        public long AlbumId { get; set; }
-
         [Column("artist_id")]
         public long ArtistId { get; set; }
 
-        [Column("title")]
-        public string Title { get; set; }
+        [Column("language_code")]
+        public string LanguageCode { get; set; }
 
-        public Albums Album { get; set; }
+        [Column("text")]
+        public string Text { get; set; }
+
         public Artists Artist { get; set; }
     }
 }

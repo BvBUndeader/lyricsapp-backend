@@ -1,8 +1,8 @@
 ﻿namespace LyricsBackend.Contracts
 {
-    public class CreateFavoriteRequest
+    public class CreateSongHistoryRequest
     {
-        public string Username { get; set; }
+        public long UserId { get; set; }
         public long SongId { get; set; }
     }
 }
