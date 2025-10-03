@@ -1,8 +1,10 @@
 using LyricsBackend.Contracts;
 using LyricsBackend.Models;
+using Microsoft.AspNetCore.Mvc;
 using Supabase;
 using Supabase.Postgrest;
 using System.Linq.Expressions;
+using System.Xml.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -130,10 +132,26 @@ app.MapGet("/login", async (string username, string password, Supabase.Client cl
     return Results.Ok(userResponse);
 });
 
+//change pass
+app.MapPatch("/users/passchange", async (PassChangeRequest request, Supabase.Client client) =>
+{
+    var user = await client.From<Users>().Where(u => u.Id == request.UserId).Single();
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    user.Password = request.NewPassword;
+
+    await user.Update<Users>();
+
+    return Results.Ok("Password changed successfully");
+});
+
 //fetching a song
 app.MapGet("/songs/search", async (string title, string artist, Supabase.Client client) =>
 {
-    string lang = "en";
     var artistResponse = await client.From<Artists>().Select("*")
     .Filter(artist => artist.Name, Constants.Operator.ILike, "%" + artist + "%").Single();
 
@@ -190,6 +208,36 @@ app.MapGet("/songs/multisearch", async (string title, Supabase.Client client) =>
 
 });
 
+//fetching multiple songs with the same album
+app.MapGet("/songs/albumsearch", async (string albumTitle, Supabase.Client client) =>
+{
+    var albumCheck = await client.From<Albums>().Select("*, artist:artists(name), genre:genres(name)")
+    .Filter(album => album.Title, Constants.Operator.ILike, "%" + albumTitle + "%").Single();
+
+    if (albumCheck is null)
+    {
+        return Results.NotFound("Album not found");
+    }
+
+    var response = await client.From<Songs>().Select("*, album:albums(title),artist:artists(name)").Where(s => s.AlbumId == albumCheck.Id).Get();
+
+    if (!response.Models.Any())
+    {
+        return Results.NotFound();
+    }
+
+    var songResponse = response.Models.Select(song => new SongResponse
+    {
+        Id = song.Id,
+        Title = song.Title,
+        Album = song.Album.Title,
+        Artist = song.Artist.Name
+    });
+
+    return Results.Ok(songResponse);
+
+});
+
 // fetch single artist
 app.MapGet("artists/search", async (string name, string lang, Supabase.Client client) =>
 {
@@ -205,7 +253,6 @@ app.MapGet("artists/search", async (string name, string lang, Supabase.Client cl
     }
 
     var bioFetch = await client.From<ArtistBio>().Select("*").Where(b => b.ArtistId == artist.Id && b.LanguageCode == lang).Single();
-    //var bio = bioFetch.Models.FirstOrDefault();
 
     ArtistResponse artistResponse = new ArtistResponse();
     if (bioFetch is null)
@@ -274,11 +321,18 @@ app.MapGet("/albums/search", async (string title, Supabase.Client client) =>
 
 });
 
-// fetch multi albums
-app.MapGet("/albums/multisearch", async (string title, Supabase.Client client) =>
+// fetch multi albums from the same artist
+app.MapGet("/albums/multisearch", async (string artist, Supabase.Client client) =>
 {
+    var artistCheck = await client.From<Artists>().Select("*").Filter(artist => artist.Name, Constants.Operator.ILike, "%" + artist + "%").Single();
+
+    if(artistCheck is null)
+    {
+        return Results.NotFound("Artist not found");
+    }
+
     var response = await client.From<Albums>().Select("*, artist:artists(name), genre:genres(name)")
-    .Filter(album => album.Title, Constants.Operator.ILike, "%" + title + "%").Get();
+    .Where(album => album.ArtistId == artistCheck.Id).Order(album => album.ReleaseDate, Constants.Ordering.Descending).Get();
 
 
     if (!response.Models.Any())
@@ -429,7 +483,7 @@ app.MapDelete("/favorites/delete/{userId}/{songId}", async (long userId, long so
     return Results.NotFound("No such song is in user's favorites");
 });
 
-//creating a hsitory record of opened song
+//creating a history record of opened song
 app.MapPost("/songhistory", async (CreateSongHistoryRequest request, Supabase.Client client) =>
 {
     var userCheck = await client.From<Users>().Select("*").Where(u => u.Id == request.UserId).Get();
@@ -455,7 +509,8 @@ app.MapPost("/songhistory", async (CreateSongHistoryRequest request, Supabase.Cl
         CreatedAt = DateTime.UtcNow
     };
 
-    var existingCheck = await client.From<OpenedHistory>().Select("*").Where(check => check.UserId == record.UserId && check.SongId == record.SongId).Get();
+    var existingCheck = await client.From<OpenedHistory>().Select("*")
+    .Where(check => check.UserId == record.UserId && check.SongId == record.SongId).Get();
     var existing = existingCheck.Models.FirstOrDefault();
 
     if (existing != null)
@@ -483,7 +538,7 @@ app.MapPost("/songhistory", async (CreateSongHistoryRequest request, Supabase.Cl
 //getting most recent five records of opened songs
 app.MapGet("songhistory/recent", async(long userId, Supabase.Client client) =>
 {
-    var recentHistory = await client.From<OpenedHistory>().Select("id, created_at, song:songs(id, title, album:albums(title),artist:artists(name))")
+    var recentHistory = await client.From<OpenedHistoryFetch>().Select("id, created_at, song:songs(id, title, album:albums(title),artist:artists(name))")
     .Where(result => result.UserId == userId).Order(result => result.CreatedAt, Constants.Ordering.Descending).Limit(5).Get();
 
     if(recentHistory.Models.Count == 0)

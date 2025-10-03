@@ -1,4 +1,5 @@
-﻿using Supabase.Postgrest.Attributes;
+﻿using Newtonsoft.Json;
+using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 
 namespace LyricsBackend.Models
@@ -15,7 +16,5 @@ namespace LyricsBackend.Models
         public long SongId { get; set; }
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
-
-        public Songs Song { get; set; }
     }
 }
