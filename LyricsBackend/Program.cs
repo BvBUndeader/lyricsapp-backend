@@ -515,7 +515,17 @@ app.MapPost("/songhistory", async (CreateSongHistoryRequest request, Supabase.Cl
 
     if (existing != null)
     {
-        return Results.Conflict("Record already created");
+        existing.CreatedAt = DateTime.UtcNow;
+
+        await existing.Update<OpenedHistory>();
+
+        return Results.Ok(new CreateSongHistoryResponse
+        {
+            Id = existing.Id,
+            UserId = existing.UserId,
+            SongId = existing.SongId,
+            CreatedAt = existing.CreatedAt
+        });
     }
 
     var response = await client.From<OpenedHistory>().Insert(record);
